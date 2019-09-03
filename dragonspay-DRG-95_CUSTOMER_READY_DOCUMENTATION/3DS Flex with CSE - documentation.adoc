@@ -1,0 +1,30 @@
+= 3DS Flex & CSE integration example
+
+This document describes how to run the current project representing a fully functional integration of 3DS2 DDC and Client Side Encryption (provided by Worldpay).
+The front-end implementation is pretty generic, but requires some merchant input in order to run successfully.
+The back-end used in the current example is written in Java.
+
+== How to run
+
+=== Using the provided backend implementation
+
+In order to run the current example using the given sample merchant back-end implementation, the following configurations need to be performed:
+
+. In `+index.html (/UI/index.html)+` replace `+[YOUR_PUBLIC_KEY]+` with your CSE public key (see how to generate the key pair https://beta.developer.worldpay.com/docs/wpg/clientsideencryption/javascript-integration#create-your-rsa-key-pair[here].)
+. In `+index.html (/UI/index.html)+` replace the payment form action with `+http://localhost:8888/pay+`
+. In `+index.html (/UI/static/JWT.js)+`, replace `+[YOUR_AUTH_ENDPOINT]+` with `+http://localhost:8888/auth+`
+. Going in the back-end: in `+PaymentService.java (/BE/src/main/java/com/worldpay/poc/threedscse/service/PaymentService.java+`, replace `+[YOUR_MERCHANT_CODE]+` with your own merchant code
+
+Run the app from the `+BE+` folder:
+`+mvn spring-boot:run+`
+
+You will see a basic payment page. Insert `+4444333322221111+` as the card number then complete the rest of the fields. The output will be a complete payment XML which contains both encrypted card details and the DDC session ID.
+
+=== Using your own back-end implementation
+
+In order to perform the integration using your own back-end and payment page, build upon the `+index.html+` and just use the JavaScript source code provided. You will still need to perform the first three steps above.
+Replace the /auth and /pay endpoints with your own, depending on your implementation.
+
+== The full integration guide
+
+In order to see how to perform the integration step by step (and also modify your payment page accordingly), please see https://beta.developer.worldpay.com/docs/wpg/authentication/csejavascript3ds2[our integration guide].
