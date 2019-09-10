@@ -1,0 +1,76 @@
+﻿<!DOCTYPE HTML>
+<!DOCTYPE html PUBLIC "" ""><HTML><HEAD>
+<META http-equiv="Content-Type" content="text/html; charset=utf-8"></HEAD>
+<BODY>
+<PRE>&lt;html lang="en"&gt;
+
+&lt;head&gt;
+  &lt;title&gt;Sample payment page&lt;/title&gt;
+  &lt;link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.css"&gt;
+  &lt;script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"&gt;&lt;/script&gt;
+  &lt;script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"&gt;&lt;/script&gt;
+  &lt;script src="https://payments.worldpay.com/resources/cse/js/worldpay-cse-1.latest.min.js"&gt;&lt;/script&gt;
+  &lt;script type="text/javascript" src="static/JWT.js"&gt;&lt;/script&gt;
+  &lt;script type="text/javascript" src="static/formValidator.js"&gt;&lt;/script&gt;
+  &lt;script type="text/javascript" src="static/errorHandler.js"&gt;&lt;/script&gt;
+  &lt;script&gt;
+    //adds the merchant public key for CSE
+    window.onload = function() {
+      Worldpay.setPublicKey('[YOUR_PUBLIC_KEY]');
+    }
+  &lt;/script&gt;
+  &lt;style&gt;
+  /* sets div in the center of the page*/
+    div.center {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      margin-right: -50%;
+      transform: translate(-50%, -50%);
+    }
+  &lt;/style&gt;
+&lt;/head&gt;
+
+&lt;body&gt;
+  &lt;div class="container center"&gt;
+    &lt;h2 style="color: red;"&gt;Sample payment page&lt;/h2&gt;
+    &lt;form id="paymentDetailsForm" action="[YOUR_PAYMENT_ENDPOINT]" method="POST"&gt;
+      &lt;div class="form-group"&gt;
+        &lt;label class="col-form-label" for="cardNumber"&gt;Card number&lt;/label&gt;
+        &lt;input id="cardNumber" name="cardNumber" class="form-control col-md-5" placeholder="1234 1234 1234 1234" /&gt;
+      &lt;/div&gt;
+      &lt;div class="form-group"&gt;
+        &lt;label class="col-form-label" for="cardHolderName"&gt;Card holder name&lt;/label&gt;
+        &lt;input id="cardHolderName" name="cardHolderName" class="form-control col-md-3" placeholder="John Doe" /&gt;
+      &lt;/div&gt;
+      &lt;div class="form-group"&gt;
+        &lt;label class="col-form-label"&gt;Expiration date&lt;/label&gt;
+        &lt;div class="form-row"&gt;
+          &lt;div class="form-group col-sm-2"&gt;
+            &lt;input id="expirationMonth" name="expMonth" class="form-control" placeholder="MM" /&gt;
+          &lt;/div&gt;
+          &lt;label class="col-form-label"&gt;/&lt;/label&gt;
+          &lt;div class="form-group col-sm-2"&gt;
+            &lt;input id="expirationYear" name="expYear" class="form-control" placeholder="YYYY" /&gt;
+          &lt;/div&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div class="form-row"&gt;
+        &lt;label class="col-form-label" for="cvcCode"&gt;CVC&lt;/label&gt;
+        &lt;div class="form-group"&gt;
+          &lt;input id="cvcCode" name="cvc" class="form-control" placeholder="123" /&gt;
+        &lt;/div&gt;
+      &lt;/div&gt;
+      &lt;div&gt;
+        &lt;input type="hidden" name="dfReferenceId" id="dfReferenceId" value="" /&gt;
+        &lt;input type="hidden" name="encryptedData" id="encryptedData" value="" /&gt;
+      &lt;/div&gt;
+      &lt;div class="form-group form-row"&gt;
+        &lt;input class="btn btn-danger btn-block" id="payButton" type="button" value="Pay" onclick="getJwt().then(jwt =&gt; submitForm(event, getDdcDomain(), document.getElementById('cardNumber').value, jwt))" /&gt;
+      &lt;/div&gt;
+    &lt;/form&gt;
+  &lt;/div&gt;
+&lt;/body&gt;
+
+&lt;/html&gt;
+</PRE></BODY></HTML>
