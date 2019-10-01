@@ -1,9 +1,0 @@
-server:
-  port: 8888
-jwt:
-  apiKey:  "fa2daee2-1fbb-45ff-4444-52805d5cd9e0"
-  apiIdentifier: "5bd9e0e4444dce153428c940"
-  orgUnitId: "5bd9b55e4444761ac0af1c80"
-  tokenDuration: "02:00:00"
-xml:
-  DTD: "<!DOCTYPE paymentService PUBLIC \"-//WorldPay//DTD WorldPay PaymentService v1//EN\" \"http://dtd.worldpay.com/paymentService_v1.dtd\">"
