@@ -1,0 +1,459 @@
+= 3DS Flex & CSE integration - merchant documentation
+
+This document describes how to integrate CSE (Client Side Encryption) with 3DS Flex, the most advanced solution on the market for 3-D Secure.
+In order to use 3DS Flex, you must integrate 3DS2 - 3DS1 will become obsolete soon.
+
+NOTE: This guide presents the integration steps for the browser flow (JavaScript).
+
+== Client Side Encryption (CSE)
+
+WARNING: Before integrating CSE, you need to bear in mind that you need to be PCI-DSS compliant, to a level of Self Assessment Questionnaire A-EP or above, in accordance with the latest PCI DSS standards (v3.2.1).
+
+CSE encrypts cardholder details at each payment attempt, before they're submitted to your server. The encryption/decryption is performed using a special pair of RSA keys, that you can obtain from the Merchant Admin Interface. To get your RSA public key, see details http://support.worldpay.com/support/kb/gg/corporate-gateway-guide/content/clientsideencryption/clientsideintegration.htm#Create[here].
+You can use CSE in three ways, client-side: JavaScript (browser flow), Android, iOS (mobile devices). 3DS Flex and CSE can be integrated on both web (browser flow) and mobile applications.
+CSE is supported by most modern browsers, including Google Chrome, Mozilla Firefox or Safari.
+
+NOTE: We cannot guarantee that Client Side Encryption will work if a shopper is using an out-dated version of the above browsers.
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+== How does Worldpay provide 3DS2?
+Please see https://beta.developer.worldpay.com/docs/wpg/directintegration/3ds2[here] for more details.
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+== The 3DS flow
+Please see https://beta.developer.worldpay.com/docs/wpg/directintegration/3ds2[here] for more details.
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+== How to do the integration?
+
+This guide contains the following steps:
+
+. Preparing the payment page
+. Performing DDC
+. Performing CSE
+. Making everything work together
+
+=== Client side integration
+
+==== Preparing the payment page
+In order to ensure a smooth integration, you need to prepare your payment page.
+You will be integrating the Worldpay CSE library (see below), but you also need to make some changes to your payment form to ensure you get the JWT required for DDC successfully.
+In addition to the conventional input fields, you will need to add two more (which will be hidden):
+
+* `+dfReferenceId+` (the DDC Session ID - see below)
+* `+encryptedData+` (encrypted data resulted from CSE).
+
+These two will be submitted with your form. Your payment details form should look something like this:
+
+[source,xml]
+----
+<form id="paymentDetailsForm" action="[YOUR_ACTION]" method="POST">
+    	<input id="cardNumber"/> <!-- The card number field -->
+	    <input id="cardHolderName"/> <!-- The card holder name field -->
+	    <input id="expiryMonth"/> <!-- The expiry month field -->
+	    <input id="expiryYear"/> <!-- The expiry year field -->
+	    <input id="cvcCode"/> <!-- The CVC code field -->
+	    <input type="hidden" name="dfReferenceId" id="dfReferenceId" value=""/> <!-- The dfReferenceId field -->
+      <input type="hidden" name="encryptedData" id="encryptedData" value=""/> <!-- The encryptedData field -->
+	    <input id="payButton" type="button" value="Pay" onclick="custom_submit_action();"/> <!-- The Pay button -->
+</form>
+----
+
+WARNING: Make sure you don't use the name attribute for the card details fields unless you want to submit them to your server unencrypted!
+
+As you can see, a custom JavaScript method (`+custom_submit_action()+`) is attached to the click event on the Pay button - see <<Obtain a new JWT each time the shopper makes a payment attempt>> and <<Making everything work together>>.
+
+==== Performing DDC
+
+The Device Data Collection is the first step in the 3DS2 flow (as you already know). 3DS Flex is offered in collaboration with Cardinal Commerce, so all requests need to be authenticated using a JWT (JSON Web Token). When you provide this you gain access to resources to complete DDC and 3DS challenges. DDC requires the BIN (first 6 digits of the card number to full card number) and the JWT, which are submitted to a data collection link. In order to perform DDC you need to take the following actions:
+
+===== Create the JWT on your server and deliver it when the Pay button is clicked by the shopper
+You can create the JWT using one of the many available approved libraries (please see https://jwt.io[jwt.io]). The JWT needs to have a specific structure: header, body, MAC.
+
+The scope of the header is to identify that the body represents a JWT and to specify the encoding algorithm to be used.
+
+The body is a bit more complex, and needs to have the following structure:
+
+.The JWT body structure
+|===
+|Claim name | Description
+
+|`+jti+`
+| JWT Id - A unique identifier for this JWT. This field must be set to a random UUID each time a JWT is generated.
+
+|`+iat+`
+| Issued At - The epoch time (in seconds - 10 digits) of when the JWT was generated. Valid for two hours.
+
+|`+iss+`
+| Issuer - An identifier of who is issuing the JWT. Use `+5bd9e0e4444dce153428c940+` in test. We will provide values for live.
+
+|`+exp+`
+| Expiration - The numeric epoch time (in seconds - 10 digits) that the JWT should be considered expired. Anything over two hours in the future will be ignored.
+
+|`+OrgUnitId+`
+| Organisational Unit Id - An identity associated with your account. Use `+5bd9b55e4444761ac0af1c80+` in test. We will provide the values for live.
+|===
+
+The JWT MAC is a Base64 encoded value of the header and the payload combined with a JWT MAC key. This is used to verify that the contents of the JWT have not been changed. Use `+fa2daee2-1fbb-45ff-4444-52805d5cd9e0+` as a test value. We will provide the value for live.
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+Example header:
+[source,json]
+----
+{
+  "typ":"JWT",
+  "alg":"HS256"
+}
+----
+
+Example body:
+[source,json]
+----
+{
+  "jti": "69adc185-1748-4525-9ef9-43f259a1c2d6",
+  "iat": 1548838855,
+  "iss": "5bd9e0e4444dce153428c940",
+  "exp": 1548838900,
+  "OrgUnitId": "5bd9b55e4444761ac0af1c80"
+}
+----
+
+===== Obtain a new JWT each time the shopper makes a payment attempt
+
+The JWT is created server-side and is delivered each time a payment attempt is made. You may get the JWT however you like, but for demonstration purposes here's an example:
+
+[source,java]
+----
+function getJwt() {
+  return fetch("[YOUR_AUTH_ENDPOINT]").then(response => {
+    return response.text()
+      .then(text => {
+        return text;
+      })
+    }).catch(function(error) {
+      //handle error
+    });
+}
+----
+
+The above function gets called in the payment form, when clicking the Pay button:
+[source,xml]
+----
+<input id="payButton" type="button" value="Pay"
+     onclick="getJwt().then((jwt) => { submitForm(event, document.getElementById('cardNumber').value, jwt) });"/>
+----
+
+The `+submitForm()+` function will be detailed in <<Making everything work together>>.
+
+===== Create an invisible iframe on your payment page which submits the BIN and JWT to the device data collection URL
+
+In order to send the JWT and BIN, create an invisible iframe on your page which submits the required data to https://secure-test.worldpay.com/shopper/3ds/ddc.html (we will provide the live URL). DDC requires a JavaScript library provided by Cardinal Commerce in order to run inside the shopper's browser.
+You may create the iframe dynamically, with each payment attempt.
+Here is an example of the iframe body:
+
+[source,xml]
+----
+<body onload='document.collectionForm.submit();'>
+    <form id='collectionForm' name='collectionForm' method='POST' action='https://secure-test.worldpay.com/shopper/3ds/ddc.html'>
+        <input type='hidden' name='Bin' value='4444333322221111'> <!-- The shopper card  -->
+        <input type='hidden' name='JWT' value='[SERVER-SIDE GENERATED JWT]'> <!-- The JWT generated on your server -->
+    </form>
+</body>
+----
+
+Below, there's a full example of the function that performs the DDC call:
+
+[source,java]
+----
+function performDDC(bin, jwt) {
+  let innerHtml =
+        "<body onload='document.collectionForm.submit();'>" +
+        "<form id='collectionForm' name='collectionForm' method='POST' action='https://secure-test.worldpay.com/shopper/3ds/ddc.html'>" +
+        "<input type='hidden' name='Bin' value='" + bin + "'>" +
+        "<input type='hidden' name='JWT' value='" + jwt + "'>" +
+        "</form>" +
+        "</body>";
+
+  //set iframe properties
+  var iframe = document.createElement("iframe");
+  iframe.id = "ddcIframe";
+  iframe.width = 0;
+  iframe.height = 0;
+  iframe.style.visibility = "hidden";
+  iframe.style.display = "none";
+  iframe.target = "_top";
+  iframe.srcdoc = innerHtml;
+
+  document.body.appendChild(iframe);
+}
+----
+
+===== Capture the response
+
+The DDC result is transmitted back to you as a JavaScript post message with the following structure:
+
+IMPORTANT: Message structure and documentation to be completed by the technical writer if necessary, from https://beta.developer.worldpay.com/docs/wpg/directintegration/3ds2#device-data-collection-ddc-[here].
+
+You need to extract the SessionId and submit it with the payment details form as dfReferenceId. In case of failure, dfReferenceId will remain empty and the payment will go through 3DS1 (the conventional way). Here is how to capture the response:
+
+[source,java]
+----
+window.addEventListener("message", function(event) {
+  var domain = extractDomain('[DDC_URL]'); //extract domain from DDC URL
+
+  if(event.origin === domain) {
+    let data = JSON.parse(event.data);
+
+    if (data && data.Status && data.SessionId) {
+      document.getElementById('dfReferenceId').value = data.SessionId;
+      } else {
+        //take action
+	//dfReferenceId will remain empty
+      }
+  }
+  }, false);
+----
+
+==== Performing CSE
+
+NOTE: More information on the Worldpay CSE library is available on https://github.com/Worldpay/worldpay-cse-lib-javascript/[GitHub].
+
+IMPORTANT: The worldpay CSE library supports three integration modes: standard (using Worldpay HTML attributes), by identifying your own form (similar with the first one) and custom. Currently, 3DS Flex can only be integrated with the last option, which is described below.
+
+CSE is the other important piece of this puzzle and is performed using the WorldPay provided library. To complete CSE you must go through the following steps:
+
+===== Import the Worldpay CSE library
+
+[source,xml]
+----
+<script src="https://payments.worldpay.com/resources/cse/js/worldpay-cse-1.latest.min.js"></script>
+----
+
+===== Set your public key
+
+NOTE: You can get your private key from the Merchant Admin Interface.
+
+[source,java]
+----
+window.onload = function() {
+      Worldpay.setPublicKey('1#10001#bab7d41a4539d5f8e37116da62aa0175f5be8ca920'
+                    + '78bfc21769ec1566bfd3d45cc29af09d701b1ae7645c1340d0'
+                    + '0c5bc3a4c2b0b149e089b61f0aef476e4672bd82a90a8187a5'
+                    + '2cbd57f3866810d01c4d1a88dfdb1021b1de220a157e9b5d49'
+                    + '161c4311742885555f8edb3829c083c60be3b6beef3df62752'
+                    + '270268a41ed83dafcc9638bc73a19cfce7f7d4a2f1d09c00bd'
+                    + '8e00f5fa7c53f2d3155ad36d6f08c9c21a0491cc604e976de1'
+                    + 'f5e93228dc4798a53fe4c53b61ea1355a668765471b3d3e2c1'
+                    + '0260f2b0b0140fc6b6353c0666b25b9310958a3bf63dd7fd52'
+                    + '2b724105ca6711d2e5fa2019cc42eb9223909542273fb5a179'
+                    + '15d842f41f9399591715');
+}
+----
+
+===== Implement an error handling function
+
+WARNING: Highly recommended - otherwise unseen errors can stop the form from working!
+
+The Worldpay CSE library performs some validations on all card details fields, which prevents invalid data to be submitted to your server. The full list of error codes is available below:
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+Example of an error handling function:
+
+[source,java]
+----
+function errorHandler(errorCodes) {
+    if(errorCodes.includes(101) || errorCodes.includes(103)) {
+      //take action
+    }
+    //...
+}
+----
+
+===== Finish integration
+
+Since you are doing a custom CSE integration, you need to do the following: create the JSON object which holds the card data, call the encryption function and pass the encrypted card details back to the server.
+Here's an example:
+
+[source,java]
+----
+function performCSE() {
+  var sensitiveData = {
+      cardNumber: document.getElementById('cardNumber').value,
+      cvc: document.getElementById('cvcCode').value,
+      expiryMonth: document.getElementById('expirationMonth').value,
+      expiryYear: document.getElementById('expirationYear').value,
+      cardHolderName: document.getElementById('cardHolderName').value
+  };
+
+  //sets fields to empty if no value is present
+  for(var key in sensitiveData) {
+    let value = sensitiveData[key];
+    if(!value) {
+      value = "";
+    }
+  }
+
+  //performs encryption and sends the encrypted data back to the server
+  document.getElementById('encryptedData').value = Worldpay.encrypt(sensitiveData, errorHandler);
+}
+----
+
+==== Making everything work together
+
+The last step which you need to take is to fit everything together. This is the scope of the `+submitForm()+` function mentioned in section 1, attached to the Pay button `+onclick+` event. The flow is, as follows:
+
+. DDC is started (iframe is created and submitted)
+. DDC result is expected - you may customize the timeout interval
+. CSE is performed
+. if no errors occur, the payment form is submitted to the server
+
+Since JavaScript is not multithreaded, the CSE happens after a timeout interval for the DDC response runs out. If no response is received during that interval, the dfReferenceId will be submitted as empty and the payment will fall back to 3DS1. You may also implement additional field validations if you wish so. Here is a full example:
+
+[source,java]
+----
+function submitForm(event, bin, jwt) {
+    //your validations here
+
+    //perform DDC first - create the iframe and submit it (see above)
+    performDDC(bin, jwt);
+
+    window.setTimeout(function() {
+    	performCSE(); //also performs field validation
+
+	//check for errors and prevent submission - use the Worldpay error handler or your own method
+	if(!hasError) {
+            document.getElementById('paymentDetailsForm').submit();
+        } else {
+            //take action - prevent submission
+        }
+    }, 3000); //3 second timeout - in the meantime the DDC event listener should catch the response
+}
+----
+
+=== Server side integration
+
+In order to finish the integration process, you need to make some modifications on your server, which generates the first payment request XML.
+First of all, add the `+<CSE-DATA>+` tag under `+<paymentDetails>+`: this contains the `+<encryptedData>+` (the encrypted card details resulted from CSE) and `+<cardAddress>+`.
+The 3DS Flex integration also requires some special elements in your payment request XML:
+
+* `+additional3DSData+` (mandatory)
+* `+riskData+` (increases the chance of a frictionless flow)
+
+The `+additional3DSData+` tag contains the following:
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+`+riskData+` contains the following: `+authenticationRiskData+`, `+shopperAccountRiskData+` and `+transactionRiskData+`.
+
+IMPORTANT: To be completed with relevant information by the technical writer.
+
+`+additional3DSData+` should be placed right before the end of the `+order+` tag.
+
+Here is an example of a full payment request using both 3DS Flex and CSE:
+
+[source,xml]
+----
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE paymentService PUBLIC "-//WorldPay//DTD WorldPay PaymentService v1//EN" "http://dtd.worldpay.com/paymentService_v1.dtd">
+<paymentService merchantCode="ALEXPROBA" version="1.4">
+    <submit>
+        <order orderCode="1559567669283">
+            <description>Test order for ALEXPROBA.</description>
+            <amount value="73048" currencyCode="EUR" exponent="2"/>
+            <orderContent><![CDATA[]]></orderContent>
+            <paymentDetails>
+                <CSE-DATA>
+                  <encryptedData>
+eyJhbGciOiJSU0ExXzUiLCJlbmMiOiJBMjU2R0NNIiwia2lkIjoiMSIsImNvbS53b3JsZHBheS5hcGlWZXJzaW9uIjoiMS4wIiwiY29tLndvcmxkcGF5LmxpYlZlcnNpb24iOiIxLjAuMSIsImNvbS53b3JsZHBheS5jaGFubmVsIjoiamF2YXNjcmlwdCJ9.DaKoSziapSrotSTkbs9FAufAzq35DYC2T8QC-CQM9IPSt6KvT8c6etMiDq0AtSq3mfSlLXUogSccYdDFIRc3hXNr8aKO0IFN_XxUVrTRslZyF9cPueOEJFSbzzDapymfvclejWuo9rp6y8iNesuwql8-KQNGcfQRynL9yzMbrd-ZECShrLn5IMjAAFQYtwyBiFXk2xtEPvO2RQ0TJGbRTmAaZXy96cJT4f363AFk-7NtdZTK5xEQAifQfHHoXaGpw7xOmMnDUt121PAp5LHNrwLwGHKz6-CVJa6C7lMWynAc3E6VVLiZQw2YpIj8SS2big9bP-jGSGR1HcgzrCMaBA.46gvxZFZcHf6-s8t.ri4NV_sUrgav4fP4ZlNdUS3YlWzPHITP6rAL51wVM1lsTDBAok_JmAK1uWYXBhTKdHLs_Uk577d4yjlJ5Cy6_uh9lpAYo6_-gkLpwSduWeVOQ71VvoU7OT4RfhhfEngNctj6zjb0MjgIo7WXaWhKjw.sx0VhKfKKEb7OBRz2QKu7g
+                  </encryptedData>
+                    <cardAddress>
+                        <address>
+                            <firstName>Mr Bert</firstName>
+                            <address1>Worldpay</address1>
+                            <address2>270-289 The Science Park</address2>
+                            <address3>Milton Road</address3>
+                            <postalCode>CB4 0WE</postalCode>
+                            <city>Cambridge</city>
+                            <countryCode>GB</countryCode>
+                        </address>
+                    </cardAddress>
+                </CSE-DATA>
+                <session id="ssn516181942" shopperIPAddress="127.0.0.1"/>
+            </paymentDetails>
+            <shopper>
+                <browser>
+                    <acceptHeader>text/html</acceptHeader>
+                    <userAgentHeader>Mozilla/5.0</userAgentHeader>
+                </browser>
+            </shopper>
+            <shippingAddress>
+                <address>
+                    <firstName>A</firstName>
+                    <lastName>Customer</lastName>
+                    <address1>1 A Place</address1>
+                    <address2>A Town</address2>
+                    <address3>Maybe</address3>
+                    <postalCode>CB1 0EE</postalCode>
+                    <city>Somewhere</city>
+                    <countryCode>GB</countryCode>
+                    <telephoneNumber>00000000000</telephoneNumber>
+                </address>
+            </shippingAddress>
+            <riskData>
+                <authenticationRiskData authenticationMethod="guestCheckout">
+                    <authenticationTimestamp>
+                        <date second="01" minute="02" hour="03" dayOfMonth="01" month="01" year="2019"/>
+                    </authenticationTimestamp>
+                </authenticationRiskData>
+                <shopperAccountRiskData transactionsAttemptedLastDay="4" transactionsAttemptedLastYear="2" purchasesCompletedLastSixMonths="1" addCardAttemptsLastDay="0" previousSuspiciousActivity="false" shippingNameMatchesAccountName="true">
+                    <shopperAccountCreationDate>
+                        <date dayOfMonth="031" month="032" year="20033"/>
+                    </shopperAccountCreationDate>
+                    <shopperAccountModificationDate>
+                        <date dayOfMonth="032" month="033" year="20034"/>
+                    </shopperAccountModificationDate>
+                    <shopperAccountPasswordChangeDate>
+                        <date dayOfMonth="033" month="034" year="20035"/>
+                    </shopperAccountPasswordChangeDate>
+                    <shopperAccountShippingAddressFirstUseDate>
+                        <date dayOfMonth="034" month="035" year="20036"/>
+                    </shopperAccountShippingAddressFirstUseDate>
+                    <shopperAccountPaymentAccountFirstUseDate>
+                        <date dayOfMonth="035" month="036" year="20037"/>
+                    </shopperAccountPaymentAccountFirstUseDate>
+                </shopperAccountRiskData>
+                <transactionRiskData deliveryEmailAddress="sp@worldpay.com" deliveryTimeframe="electronicDelivery" giftCardCount="2" preOrderPurchase="true" reorderingPreviousPurchases="false" shippingMethod="shipToBillingAddress">
+                    <transactionRiskDataGiftCardAmount>
+                        <amount value="1" currencyCode="EUR" exponent="2"/>
+                    </transactionRiskDataGiftCardAmount>
+                    <transactionRiskDataPreOrderDate>
+                        <date dayOfMonth="036" month="037" year="20038"/>
+                    </transactionRiskDataPreOrderDate>
+                </transactionRiskData>
+            </riskData>
+            <additional3DSData dfReferenceId="59abd527-48c4-4076-8c16-020ed3cb3062" challengeWindowSize="250x400" challengePreference="challengeMandated"/>
+        </order>
+    </submit>
+</paymentService>
+----
+
+NOTE: After the first payment request is created, you may also implement the rest of the 3DS flow steps, as described here: https://beta.developer.worldpay.com/docs/wpg/directintegration/3ds2#initial-xml-payment-request[here].
+
+== Recommendations regarding the WorldPay CSE JavaScript library
+
+The proposed solution didn't alter the CSE library in any way, but it enforced the custom integration method. In order to use the WorldPay JavaScript data attributes (and use the `+useForm()+` function presented below), the `+encryptForm()+` function needs to be made public.
+Currently, the `+onsubmit+` event handler is not compatible with DDC: DDC needs to be performed first and that means the form is submitted through JavaScript (in the code which performs DDC) rather than through user interaction. This does not trigger the
+event handler mentioned earlier, thus CSE is not performed.
+
+[source, java]
+----
+if (paymentForm !== null) {
+		paymentForm.onsubmit = function() { //this handler is only triggered by user interaction
+			return encryptForm(paymentForm, handleError); //this function needs to be available publicly
+		};
+----
