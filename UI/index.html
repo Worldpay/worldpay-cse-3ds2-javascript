@@ -1,0 +1,111 @@
+<html lang="en">
+<head>
+    <title>Dragons Pay</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.0/jquery.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.4.0/js/bootstrap.min.js"></script>
+    <script src="https://payments.worldpay.com/resources/cse/js/worldpay-cse-1.latest.min.js"></script>
+    <script type="text/javascript" src="static/JWT.js"></script>
+    <script type="text/javascript" src="static/formValidator.js"></script>
+    <script type="text/javascript" src="static/errorHandler.js"></script>
+    <script>
+      //gets the selected environment for DDC, based on the dropdown options
+      //not required in production
+      function getSelectedEnv() {
+          let dropdown = document.getElementById('selEnv');
+          let selVal = dropdown.options[dropdown.selectedIndex].value;
+
+          return selVal;
+      }
+    </script>
+    <script>
+    window.onload = function() {
+      Worldpay.setPublicKey('1#10001#bab7d41a4539d5f8e37116da62aa0175f5be8ca920' 
+			+ '78bfc21769ec1566bfd3d45cc29af09d701b1ae7645c1340d0'
+			+ '0c5bc3a4c2b0b149e089b61f0aef476e4672bd82a90a8187a5'
+			+ '2cbd57f3866810d01c4d1a88dfdb1021b1de220a157e9b5d49'
+			+ '161c4311742885555f8edb3829c083c60be3b6beef3df62752'
+			+ '270268a41ed83dafcc9638bc73a19cfce7f7d4a2f1d09c00bd'
+			+ '8e00f5fa7c53f2d3155ad36d6f08c9c21a0491cc604e976de1'
+			+ 'f5e93228dc4798a53fe4c53b61ea1355a668765471b3d3e2c1'
+			+ '0260f2b0b0140fc6b6353c0666b25b9310958a3bf63dd7fd52'
+			+ '2b724105ca6711d2e5fa2019cc42eb9223909542273fb5a179'
+			+ '15d842f41f9399591715');
+	}
+    </script>
+</head>
+<body>
+<div class="container">
+    <h2 style="color: red;">Dragons Pay</h2>
+    <form id="paymentDetailsForm" action="http://localhost:8888/pay" method="POST">
+        <div class="row">
+            <div class="col-md-7">
+                <div class="form-group">
+                    <label class="col-form-label" for="cardNumber">Card number</label>
+                    <input id="cardNumber" name="cardNumber" class="form-control col-md-5"
+                           placeholder="1234 1234 1234 1234"/>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label" for="cardHolderName">Card holder name</label>
+                    <input id="cardHolderName" name="cardHolderName" class="form-control col-md-3"
+                           placeholder="John Doe"/>
+                </div>
+                <div class="form-group">
+                    <label class="col-form-label">Expiration date</label>
+                    <div class="form-row">
+                        <div class="form-group col-sm-2">
+                            <input id="expirationMonth" name="expMonth" class="form-control" placeholder="MM"/>
+                        </div>
+                        <label class="col-form-label">/</label>
+                        <div class="form-group col-sm-2">
+                            <input id="expirationYear" name="expYear" class="form-control" placeholder="YYYY"/>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <label class="col-form-label" for="cvcCode">CVC</label>
+                    <div class="form-group col-sm-2">
+                        <input id="cvcCode" name="cvc" class="form-control" placeholder="123"/>
+                    </div>
+                </div>
+                <div>
+                  <input type="hidden" name="dfReferenceId" id="dfReferenceId" value=""/>
+                  <input type="hidden" name="encryptedData" id="encryptedData" value=""/>
+                </div>
+                <div class="form-group">
+                  <input class="btn btn-danger btn-block" id="payButton" type="button" value="Pay"
+                         onclick="getJwt().then(jwt =>  submitForm(event, getSelectedEnv(), document.getElementById('cardNumber').value, jwt))"/>
+                </div>
+            </div>
+            <div class="col-md-5">
+                <div class="container border border-danger">
+                    <h4 style="color: red;">Configuration</h4>
+                    <div class="form-group">
+                        <input type="checkbox" id="useCse" name="useCse"/>
+                        <label class="form-check-label" for="useCse">
+                            Use Client-Side Encryption
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <input type="checkbox" id="useRiskData" name="riskData"/>
+                        <label class="form-check-label" for="riskData">
+                            Add risk data
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-check-label" for="selEnv">
+                            Select the environment to perform DDC against
+                        </label>
+                        <select id="selEnv" class="form-control">
+                          <option value="http://secure-test.wp.fte23.test.worldpay.com/shopper/3ds/ddc.html" selected="selected">FTE 23</option>
+                          <option value="http://ddcwillnotworkhere.com">Other</option>
+                          <option value="https://secure-test.worldpay.com/shopper/3ds/ddc.html">Secure Test</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+</body>
+</html>
